@@ -1,13 +1,15 @@
 # Problem_Set_2_Group_7
 Problem Set 2 Big Data and Machine Learning - Applied Economics - Group 7
 
-En este repositorio estamos trabajando desde el curso Big Data - Machine Learning - Applied Economics -  Departamento de Economia Universidad de los Andes - tutor principal Santiago Barbieri  - El desarrollo esta realizado por los estudiantes Catalina Esmeral , Juan Camilo Sanchez , Federico , Ronny Johan Cruz -  Grupo 7 
+We are working on this repository from the course Big Data - Machine Learning - Applied Economics - Department of Economics Universidad de los Andes - main tutor Santiago Barbieri - The development is carried out by students Catalina Esmeral, Juan Camilo Sanchez, Federico R, Ronny Johan Cruz - Group 7
 
-CONTENIDO
+CONTENT
 
-En la estructura del repositorio encontraremos
+In the repository structure we will find
 
-Document: Documento Final PDF, desarrollo PS2 y predicciones para cada unos de los medolos utilizados
-Scripts: Scripts de R con todas las lineas de codigo utilizadas
-Stores: Entradas de información que fueron utilizadas , estas bases de datos fueron recomendadas por el tutor de clase y son del ente DANE - Empalme de las series de empleo, pobreza y desigualdad - MESE
-Views: Mostraremos y adjutaremos todas las tablas descriptivas, los graficos y resultados pertinentes
+Document: Final PDF Document, PS2 development and predictions for each of the methods used
+Scripts: R scripts with all lines of code used
+Stores: Information entries that were used, these databases were recommended by the class tutor and are from the entity DANE - Splicing of the series of employment, poverty and inequality - MESE
+Views: We will display and attach all relevant descriptive tables, graphs and results
+
+
