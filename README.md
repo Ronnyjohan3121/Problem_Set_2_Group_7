@@ -12,4 +12,7 @@ Scripts: R scripts with all lines of code used
 Stores: Information entries that were used, these databases were recommended by the class tutor and are from the entity DANE - Splicing of the series of employment, poverty and inequality - MESE
 Views: We will display and attach all relevant descriptive tables, graphs and results
 
+# Some general reminders: 
 
+- It is essential how you write up the document. Be sure to be organized and consistent in explaining your equations and findings. Make sure that there are no compilation errors.
+- Write understandable code, separating and commenting on each section. Coding, like in writing, style is critical for readability. If the code is well written, it should be self-contained. There is no need to write everything you did. I encourage you to follow the [tidyverse style guide](https://style.tidyverse.org/)
