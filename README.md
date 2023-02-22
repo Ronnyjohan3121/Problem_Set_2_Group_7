@@ -1,7 +1,7 @@
 # Problem_Set_2_Group_7
 Problem Set 2 Big Data and Machine Learning - Applied Economics - Group 7
 
-En este repositorio estamos trabajando desde el curso Big Data - Machine Learning - Applied Economics-  Departamento de Economia Universidad de los Andes - tutor Santiago Barbieri  - El desarrollo esta realizado por Catalina Esmeral , Juan Camilo Sanchez , Federico , Ronny Johan Cruz -  Grupo 7 
+En este repositorio estamos trabajando desde el curso Big Data - Machine Learning - Applied Economics -  Departamento de Economia Universidad de los Andes - tutor principal Santiago Barbieri  - El desarrollo esta realizado por los estudiantes Catalina Esmeral , Juan Camilo Sanchez , Federico , Ronny Johan Cruz -  Grupo 7 
 
 CONTENIDO
 
