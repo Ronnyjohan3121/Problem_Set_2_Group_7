@@ -1,96 +1,99 @@
-# Problem Set 2 Big Data and Machine Learning - Applied Economics 
+p_load(tidyverse,knitr,kableExtra,here,jtools,
+       ggstance,broom,broom.mixed,skimr,caret,fastDummies,
+       glmnet,MLmetrics,modelsummary,gamlr,class,AER,tidymodels,themis, stargazer, xtable)
 
-# Update March 22 - 2023
-
-# Students Catalina Esmeral , Juan Camilo Sanchez , Federico R , Ronny Johan Cruz
-
-# The first thing we do is clean the environment
-
-rm(list = ls())
-
-# From the recommendations given in the asynchronous class we must load the relevant libraries
-
-require(pacman)
-
-# We use pload so that we can have the libraries that we will need for the development of the code loaded and can be called
-
-p_load(tidyverse)
-p_load(rio) 
-p_load(tidymodels)
-p_load(ggplot2)
-p_load(scales)
-p_load(skimr, 
-        caret,
-        r.vest,
-        r.stringr,
-        dplyr)
-
-# We will read the data from our directory location 
+setwd("C:/Users/juanc/OneDrive/Documents/PS2")
 
 test_hogares<-read.csv(file = 'test_hogares.csv')
 test_personas<-read.csv(file = 'test_personas.csv')
 train_hogares<-read.csv(file = 'train_hogares.csv')
-train_personsas<-read.csv(file = 'train_personas.csv')
+train_personas<-read.csv(file = 'train_personas.csv')
 
-test<-merge(test_hogares,test_personas, by="id")
-train<-left_join(train_hogares,train_personsas, by= "id")
 
-# With the dictionary that the KAGGLE DANE WEB SITE cites, we look at the meaning of the variables, we proceed to carry out the mutation to go from categorical to one of type of factor
+# Supongamos que quiero crear una variable que sea la suma de los ingresos de los individuos en el hogar a partir de la base de personas. Entonces:
+sum_ingresos<-train_personas %>% group_by(id) %>% summarize(Ingtot_hogar=sum(Ingtot,na.rm = TRUE)) 
+summary(sum_ingresos)
+# tengo entonces una base con id y la variable que acabo de crear Ingtot_hogar.
 
-test<-test%>%
-  mutate_at(.vars = c("Clase.x", "Dominio.x","P5090","Depto.x", "Clase.y", "Dominio.y",
-                      "P6020","P6050", "P6090", "P6100","P6210", "P6240",
-                      "Oficio","P6430", "P6510","P6545", "P6580","P6585s1", "P6585s2",
-                      "P6585s3", "P6585s4", "P6590","P6600", "P6610", "P6620", "P6630s1",
-                      "P6630s4","P6630s2","P6630s3","P6870", "P6920", "P7040","P7050",
-                      "P7090", "P7110","P7120", "P7150","P7160", "P7310",
-                      "P7150","P7350","P7422","P7472","P7495","P7500s2","P7500s3",
-                      "P7505","P7510s1","P7510s2","P7510s3", "P7510s5","P7510s6","P7510s7",
-                      "Pet", "Oc", "Des", "Ina", "Depto.y" ),.funs = factor)
+# Unir bases
+# Puedo entonces unirla a la base de hogares. Para ello voy a usar la función left_join() de dplyr.
+train_hogares<-left_join(train_hogares,sum_ingresos)
+colnames(train_hogares)
 
-train<-train%>%
-  mutate_at(.vars = c("Clase.x", "Dominio.x","P5090", "Pobre", "Indigente","Depto.x",
-                      "Clase.y", "Dominio.y", "Estrato1", "P6020", "P6050", "P6090",
-                      "P6100", "P6210", "P6240", "Oficio","P6430", "P6510", "P6510s2",
-                      "P6545", "P6545s2", "P6580","P6580s2", "P6585s1", "P6585s1a2",
-                      "P6585s2", "P6585s2a2", "P6585s3", "P6585s3a2", "P6585s4",
-                      "P6585s4a2", "P6590","P6600", "P6610", "P6620", "P6630s1",
-                      "P6630s4","P6630s2", "P6630s3","P6870", "P6920", "P7040", "P7050",
-                      "P7090", "P7110", "P7120", "P7140s1","P7140s2","P7150","P7160",
-                      "P7310","P7150","P7350","P7422","P7472","P7495","P7500s1",
-                      "P7500s2","P7500s3", "P7505","P7510s1","P7510s2","P7510s3",
-                      "P7510s5","P7510s6","P7510s7","Pet", "Oc", "Des", "Ina", "Depto.y" ),.funs = factor)
+# Tengo ahora una columna extra que es Ingtot_hogar
+head(train_hogares[c("id","Ingtotug","Ingtot_hogar")])
 
-summary(train_personsas$P7510s5)
+# Cálculo de Pobreza
+# Según la base del DANE un hogar es clasificado pobre si el “Ingreso percápita de la unidad de gasto con imputación de arriendo a propietarios y usufructuarios” es menor a la Linea de pobreza que le corresponde al hogar.
+table(train_hogares$Pobre) 
+# no pobre 131936 y pobre 33024 
 
-summary(train$P7510s5)
+# Para testear si esto es cierto comparemos la variable Pobre incluida en la base con una creada por nosotros siguiendo el enfoque del DANE.
+train_hogares<- train_hogares %>% mutate(Pobre_hand=ifelse(Ingpcug<Lp,1,0))
+table(train_hogares$Pobre,train_hogares$Pobre_hand)
 
-# Now let´s star with data cleaning to accurately use the data
+# PREPARACIÓN DE LAS BASES DE DATOS
 
-# We must exclude the NA´s within our TRAIN database
+library(haven)
 
-cantidad_na <- sapply(train, function(x) sum(is.na(x)))
-cantidad_na <- data.frame(cantidad_na)
-cantidad_na <- data.frame(cantidad_na) %>%
-  rownames_to_column("variable")
-cantidad_na$porcentaje_na <- cantidad_na$cantidad_na/nrow(train) # We generate the number of NA´s and the percentage that emans over the variable
+# variables que se van a utilizar:
 
-# We eliminate the variables that can´t contribuite to our statistics
+# Pobre
+# Clase
+# P5010 - cantidad de cuartos de dormir (sirve para sacar cuantos duermen por cuarto)
+# P5090 – vivienda propia
+# Nper = número de personas
+# Npersug = número de personas por unidad de gasto
+# Intotug (hay que hacer un logintotug para segundo punto)
+# Ingtotugarr
+# Ingpcug
+# Lp
+# P6020 – sexo 
+# P6040 – edad
+# P6050 - jefe hogar
+# P6100 - regimen salud
+# P6210 – nivel educativo
+# P6430 - posición en trabajo
+# P6920 - cotiza pensión
+# Oc – ocupado 
+# P6240 - actividad
 
-filtro <- cantidad_na$porcentaje_na > 0.85 # An appropriate amount must be greater than 85%
-variables_eliminar <- cantidad_na$variable[filtro]
-train <- train %>% 
-  select(-variables_eliminar) # We must take into account minus sing
+# dejar en las bases solamente las variables que voy a usar
 
-x <- ls(train)
-y <- ls(test)
-igualdad <- list()
+test_hogares <- select(test_hogares, id, Clase, P5010, P5090, Nper, Npersug, Lp)
+test_personas <- select(test_personas, id, Clase, P6020, P6040, P6050, P6100, P6210, P6430, P6920, Oc)
+train_hogares <- select(train_hogares, id, Clase, P5010, P5090, Nper, Npersug, Ingtotug, Ingtotugarr, Ingpcug, Lp, Pobre, Ingtot_hogar)
+train_personas <- select(train_personas, id, Clase, P6020, P6040, P6050, P6100, P6210, P6430, P6920, Oc, Ingtot)
 
-for(i in 1:length(y)){ # vector length x
-  for(j in 1:length(x)){ # vector length y
-    if (y[i]==x[j]){
-      igualdad <- append(igualdad, y[i])
-    }
-  }
-}
-igualdad
+# se crean las variables 
+
+personas_h = train_hogares$Nper/train_hogares$P5010 # personas por habitación
+train_hogares <- cbind(train_hogares, personas_h)
+
+mujer_jh <- as.data.frame(ifelse((train_personas$P6020==1 & train_personas$P6050==1),1,0))
+train_personas <- cbind(train_personas, mujer_jh)
+mujer_jh <- train_personas %>% group_by(id) %>% summarize(mujer_jh=sum(mujer_jh,na.rm = TRUE)) 
+
+edad_jh <- (ifelse((train_personas$P6050==1),train_personas$P6040,0))
+train_personas<- cbind(train_personas, edad_jh)
+edad_jh <-train_personas %>% group_by(id) %>% summarize(edad_jh=sum(edad_jh,na.rm = TRUE)) 
+
+edu_jh <- (ifelse((train_personas$P6050==1),train_personas$P6210,0))
+train_personas<- cbind(train_personas, edu_jh )
+edu_jh  <-train_personas %>% group_by(id) %>% summarize(edu_jh = sum(edu_jh ,na.rm = TRUE)) 
+
+salud_jh <- (ifelse((train_personas$P6050==1),train_personas$P6100,0))
+train_personas <- cbind(train_personas, salud_jh)
+salud_jh <- train_personas %>% group_by(id) %>% summarize(salud_jh=sum(salud_jh,na.rm = TRUE)) 
+
+trabajo_ocu_jh <- (ifelse((train_personas$P6050==1),train_personas$P6430,0))
+train_personas<- cbind(train_personas, trabajo_ocu_jh)
+trabajo_ocu_jh <-train_personas %>% group_by(id) %>% summarize(trabajo_ocu_jh=sum(trabajo_ocu_jh,na.rm = TRUE)) 
+
+pension_jh <- (ifelse((train_personas$P6050==1),train_personas$P6920,0))
+train_personas<- cbind(train_personas, pension_jh)
+pension_jh <-train_personas %>% group_by(id) %>% summarize(pension_jh =sum(pension_jh ,na.rm = TRUE)) 
+
+ocu_jh <- (ifelse((train_personas$P6050==1),train_personas$Oc,0))
+train_personas<- cbind(train_personas, ocu_jh)
+ocu_jh <-train_personas %>% group_by(id) %>% summarize(ocu_jh =sum(ocu_jh ,na.rm = TRUE)) 
