@@ -400,12 +400,12 @@ dim(testing)
 
 summary(training$Pobre)
 
-# método rpart sin necesidad de incluir alguna grilla
+#Traincontrol
 
 set.seed(1010)
 cv5 <- trainControl(number = 5, method = "cv")
 cv3 <- trainControl(number = 3, method = "cv")
-
+#modelo árbol1
 modelo1 <- train(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh,
                  data = train, 
                  method = "rpart", 
@@ -466,6 +466,85 @@ test$gbm_out_sample = predict(gbm_res, newdata = test)
 
 cm_gbm = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$gbm_out_sample) , mode="sens_spec" , positive="1")
 cm_gbm
+
+####
+################
+######################
+
+require(pacman)
+library(rio)
+library(modelsummary)
+library(gamlr)
+library(class)
+library(ggplot2)
+library(pROC)
+
+install.packages("plotROC")
+library(plotROC)
+
+## Misclassification Rates
+## Curva de ROC
+
+library("ROCR")
+
+
+
+pred2 <- prediction(test$phat2, test$Pobre) ## paste predictions
+roc2 <- performance(pred2,"tpr","fpr")  ## get ROC object 
+plot(roc2, main = "ROC curve 2", col="red") ## plot object
+abline(a = 0, b = 1)
+auc2 <- performance(pred2, measure = "auc")
+auc2@y.values[[1]]
+
+pred3 <- prediction(test$phat3, test$Pobre) ## paste predictions
+roc3 <- performance(pred3,"tpr","fpr")  ## get ROC object 
+plot(roc3, main = "ROC curve 3", col="green") ## plot object
+abline(a = 0, b = 1)
+auc3 <- performance(pred3, measure = "auc")
+auc3@y.values[[1]]
+
+pred4 <- prediction(test$phat4, test$Pobre) ## paste predictions
+roc4 <- performance(pred4,"tpr","fpr")  ## get ROC object 
+plot(roc4, main = "ROC curve 4", col="purple") ## plot object
+abline(a = 0, b = 1)
+auc4 <- performance(pred4, measure = "auc")
+auc4@y.values[[1]]
+
+pred5 <- prediction(test$phat5, test$Pobre) ## paste predictions
+roc5 <- performance(pred5,"tpr","fpr")  ## get ROC object 
+plot(roc5, main = "ROC curve 5", col="brown") ## plot object
+abline(a = 0, b = 1)
+auc5 <- performance(pred5, measure = "auc")
+auc5@y.values[[1]]
+
+pred6 <- prediction(test$phat6, test$Pobre) ## paste predictions
+roc6 <- performance(pred6,"tpr","fpr")  ## get ROC object 
+plot(roc6, main = "ROC curve 6", col="black") ## plot object
+abline(a = 0, b = 1)
+auc6 <- performance(pred6, measure = "auc")
+auc6@y.values[[1]]
+
+pred7 <- prediction(test$y_hat_arbol1, test$Pobre) ## paste predictions
+roc7 <- performance(pred7,"tpr","fpr")  ## get ROC object 
+plot(roc7, main = "ROC curve 7", col="green") ## plot object
+abline(a = 0, b = 1)
+auc7 <- performance(pred7, measure = "auc")
+auc7@y.values[[1]]
+
+pred8 <- prediction(test$forest_out_sample, test$Pobre) ## paste predictions
+roc8 <- performance(pred8,"tpr","fpr")  ## get ROC object 
+plot(roc8, main = "ROC curve 8", col="orange") ## plot object
+abline(a = 0, b = 1)
+auc8 <- performance(pred8, measure = "auc")
+auc8@y.values[[1]]
+
+pred9 <- prediction(test$gbm_out_sample, test$Pobre) ## paste predictions
+roc9 <- performance(pred9,"tpr","fpr")  ## get ROC object 
+plot(roc9, main = "ROC curve 9", col="yellow") ## plot object
+abline(a = 0, b = 1)
+auc9 <- performance(pred8, measure = "auc")
+auc9@y.values[[1]]
+####
 
 # MODELOS DE REGRESIÓN
 
