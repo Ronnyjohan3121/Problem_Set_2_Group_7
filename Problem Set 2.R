@@ -236,28 +236,22 @@ train %>%
 
 library(tidyverse)
 
-# en base train_hogares2 las variables factor son:
-#Clase, P5090, Pobre, mujer_jh, edu_jh, salud_jh, trabajo_ocu_jh, pension_jh, ocu_jh
-
-train<-train %>% mutate(Ubic=factor(Default,levels=c(1,2)),
-                          Pobre=factor(Pobre,levels=c(0,1)),
-                          mujer_jh=factor(mujer_jh,levels=c("foreign","german")),
-                          purpose=factor(purpose,levels=c("newcar","usedcar","goods/repair","edu", "biz" )))         
+   
 
 
 ## modelos LOGIT
 set.seed(1010)
-logit1 <- glm(Pobre ~ tipo_vivienda + salud_jh + edu_jh + trabajo_ocu_jh + pension_jh + ocu_jh, data = train, family = binomial)
+
 logit2 <- glm(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + pension_jh + ocu_jh, data = train, family = binomial)
 logit3 <- glm(Pobre ~ Ubic + personas_h + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, family = binomial)
 logit4 <- glm(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, family = binomial)
 
-summary(logit1, type = "text")
+
 summary(logit2, type = "text")
 summary(logit3, type = "text")
 summary(logit4, type = "text")
 
-stargazer(logit1, logit2, logit3, logit4, type = "text")
+stargazer (logit2, logit3, logit4, type = "text")
 
 #especificaciones 3 y 4 tienen el mejor ajuste
 
@@ -469,7 +463,60 @@ gbm_res #muestra el mejor accuracy con 150 árboles
 gbm_in_sample = predict(gbm_res, newdata = train)
 test$gbm_out_sample = predict(gbm_res, newdata = test)
 
-write.csv(test, file = "predictions_grupo7_1.csv")
-write.csv(test_hogares, file = "predictions_grupo7.csv")
+
 cm_gbm = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$gbm_out_sample) , mode="sens_spec" , positive="1")
 cm_gbm
+
+# MODELOS DE REGRESIÓN
+
+library("dplyr") #for data wrangling
+library("caret") #ML
+set.seed(1010) #set the seed for replication purposes
+str(train_hogares2) #conmpact display
+
+ols <- train(Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, # model to fit
+             data = train,
+             trControl = trainControl(method = "cv", number = 10),
+             # Method: crossvalidation, 10 folds
+             method = "lm")
+# specifying regression model
+
+ols
+
+lambda <- 10^seq(-2, 3, length = 100)
+lasso <- train(
+  Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, method = "glmnet",
+  trControl = trainControl("cv", number = 10),
+  tuneGrid = expand.grid(alpha = 1, lambda=lambda), preProcess = c("center", "scale")
+)
+
+lasso
+
+ridge <- train(
+  Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, method = "glmnet",
+  trControl = trainControl("cv", number = 10),
+  tuneGrid = expand.grid(alpha = 0,lambda=lambda), preProcess = c("center", "scale")
+)
+ridge
+
+install.packages("leaps")
+require("leaps")
+best<-regsubsets(Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, method="exhaustive",data = train)
+summary(best)
+
+
+forward <- train(Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train,
+                 method = "leapForward",
+                 trControl = trainControl(method = "cv", number = 10))
+forward
+
+summary(forward$finalModel)
+
+backwards <- train(Ingtotug ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train,
+                   method = "leapBackward",
+                   trControl = trainControl(method = "cv", number = 10))
+backwards
+
+
+summary(backwards$finalModel)
+
