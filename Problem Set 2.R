@@ -198,3 +198,278 @@ for (var in variables_categoricas) {
     geom_density(alpha = 0.4) +
     labs(x = "Ingresos totales por hogar (COP)",
          y = "Densidad",
+  title = paste("Distribución de ingresos por", var)) +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    coord_cartesian(xlim = c(0, 40000000))
+  
+  p2 <- ggplot(train, aes(y = .data[[var]])) +
+    geom_bar(aes(x = (..count..)/sum(..count..)),
+             fill = "darkblue") +
+    labs(title = paste("Distribución de la variable", var),
+         x = "Proporción (%)") +
+    scale_x_continuous(labels = scales::percent) +
+    theme_bw()
+  
+  grid.arrange(p1,p2, ncol =2)
+}
+
+library(stargazer)
+
+stargazer(train[c("Nper", "Ingtotug", "total_female", "num_ocu")], type = "text")
+
+#tablas
+
+train %>%
+  select(tipo_vivienda, Pobre) %>%
+  tbl_summary(by=Pobre) %>%
+  add_overall() %>%
+  add_n()
+
+train %>%
+  select(Ubic, Pobre) %>%
+  tbl_summary(by=Pobre) %>%
+  add_overall() %>%
+  add_n()
+
+#####Modelo
+
+library(tidyverse)
+
+# en base train_hogares2 las variables factor son:
+#Clase, P5090, Pobre, mujer_jh, edu_jh, salud_jh, trabajo_ocu_jh, pension_jh, ocu_jh
+
+train<-train %>% mutate(Ubic=factor(Default,levels=c(1,2)),
+                          Pobre=factor(Pobre,levels=c(0,1)),
+                          mujer_jh=factor(mujer_jh,levels=c("foreign","german")),
+                          purpose=factor(purpose,levels=c("newcar","usedcar","goods/repair","edu", "biz" )))         
+
+
+## modelos LOGIT
+set.seed(1010)
+logit1 <- glm(Pobre ~ tipo_vivienda + salud_jh + edu_jh + trabajo_ocu_jh + pension_jh + ocu_jh, data = train, family = binomial)
+logit2 <- glm(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + pension_jh + ocu_jh, data = train, family = binomial)
+logit3 <- glm(Pobre ~ Ubic + personas_h + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, family = binomial)
+logit4 <- glm(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, data = train, family = binomial)
+
+summary(logit1, type = "text")
+summary(logit2, type = "text")
+summary(logit3, type = "text")
+summary(logit4, type = "text")
+
+stargazer(logit1, logit2, logit3, logit4, type = "text")
+
+#especificaciones 3 y 4 tienen el mejor ajuste
+
+# PROBIT
+
+# estimación probit
+
+probit1 <- glm(Pobre ~ Ubic + personas_h + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, family=binomial(link="probit") , data=train)
+probit1
+summary(probit1)
+stargazer(probit1, type="text")
+tidy(probit1)
+
+probit2 <- glm(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh, family=binomial(link="probit") , data=train)
+probit2
+summary(probit2)
+stargazer(probit2, type="text")
+tidy(probit2)
+
+stargazer(logit1, logit2, logit3, logit4, probit1, probit2, type = "text")
+
+## ratio de los coeficientes de los 2 mejores modelos
+logit4$coefficients / probit2$coefficients
+
+prop.table(table(train$Pobre))
+
+# predicction 
+
+library(dplyr)
+
+
+
+test$pred_log2 <- predict(logit2, newdata=test, type="response")
+test$pred_log3 <- predict(logit3, newdata=test, type="response")
+test$pred_log4 <- predict(logit4, newdata=test, type="response")
+test$pred_pro1 <- predict(probit1, newdata=test, type="response")
+test$pred_pro2 <- predict(probit2, newdata=test, type="response")
+
+head(test)
+
+
+ggplot(data=test , mapping = aes(Pobre, pred_log2)) + 
+  geom_boxplot(aes(fill=Pobre)) + theme_test()
+
+ggplot(data=test , mapping = aes(Pobre, pred_log3)) + 
+  geom_boxplot(aes(fill=Pobre)) + theme_test()
+
+ggplot(data=test , mapping = aes(Pobre, pred_log4)) + 
+  geom_boxplot(aes(fill=Pobre)) + theme_test()
+
+ggplot(data=test , mapping = aes(Pobre, pred_pro1)) + 
+  geom_boxplot(aes(fill=Pobre)) + theme_test()
+
+ggplot(data=test , mapping = aes(Pobre, pred_pro2)) + 
+  geom_boxplot(aes(fill=Pobre)) + theme_test()
+
+
+test <- test %>% 
+  mutate(p_logit_2 = ifelse(pred_log2 < 0.23,0,1) %>% 
+           factor(.,levels=c(0,1),labels=c("No_pobre","Pobre")))
+
+###
+
+## definir la regla (0.5)
+
+rule=0.5
+
+test$phat2 = ifelse(test$pred_log2>rule,1,0)
+test$phat3 = ifelse(test$pred_log3>rule,1,0)
+test$phat4 = ifelse(test$pred_log4>rule,1,0)
+test$phat5 = ifelse(test$pred_pro1>rule,1,0)
+test$phat6 = ifelse(test$pred_pro2>rule,1,0)
+
+head(test)
+View(test)
+
+## Clasificación (sale matriz de confusión)
+
+## logit
+
+cm_log2 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$phat2) , mode="sens_spec" , positive="1")
+cm_log2
+
+cm_log3 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$phat3) , mode="sens_spec" , positive="1")
+cm_log3
+
+cm_log4 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$phat4) , mode="sens_spec" , positive="1")
+cm_log4
+
+## probit
+cm_pro1 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$phat5) , mode="sens_spec" , positive="1")
+cm_pro1
+
+cm_pro2 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$phat6) , mode="sens_spec" , positive="1")
+cm_pro2
+
+cm1 <- cm_log1$table # matriz de confusión del modelo logit 1
+cm2 <- cm_log2$table # matriz de confusión del modelo logit 2
+cm3 <- cm_log3$table # matriz de confusión del modelo logit 3
+cm4 <- cm_log4$table # matriz de confusión del modelo logit 4
+cm5 <- cm_pro1$table # matriz de confusión del modelo probit 1
+cm6 <- cm_pro2$table # matriz de confusión del modelo probit 2
+
+# métricas por modelo
+cm1_metri <- cm_log1$byClass
+cm2_metri <- cm_log2$byClass
+cm3_metri <- cm_log3$byClass
+cm4_metri <- cm_log4$byClass
+cm5_metri <- cm_pro1$byClass
+cm6_metri <- cm_pro1$byClass
+
+cm2_metri
+# métricas agruipadas
+gru_metri <-  rbind(cm2_metri, cm3_metri, cm4_metri, cm5_metri, cm6_metri)
+
+#logit 2 y probit 2
+
+####
+
+# se seleccionó el modelo logit3
+
+require(caret)
+
+# Para desbalance de clases - evitar overfitting
+
+require("tidyverse")
+require("here")
+
+# Partir base de datos train_hogares2
+
+set.seed(1010)
+# training
+split1 <- createDataPartition(train_hogares2$Pobre, p = .7)[[1]]
+length(split1)
+other <- train_hogares2[-split1,]
+training <- train_hogares2[ split1,]
+#  ahora se crea evaluation y testing
+set.seed(1010)
+split2 <- createDataPartition(other$Pobre, p = 1/3)[[1]]
+evaluation <- other[ split2,]
+testing <- other[-split2,]
+
+dim(training)
+dim(evaluation)
+dim(testing)
+
+summary(training$Pobre)
+
+# método rpart sin necesidad de incluir alguna grilla
+
+set.seed(1010)
+cv5 <- trainControl(number = 5, method = "cv")
+cv3 <- trainControl(number = 3, method = "cv")
+
+modelo1 <- train(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh,
+                 data = train, 
+                 method = "rpart", 
+                 trControl = cv5)
+
+library(rattle)
+fancyRpartPlot(modelo1$finalModel)
+
+y_hat_insample1 = predict(modelo1, newdata = train)
+test$y_hat_arbol1 = predict(modelo1, newdata = test)
+
+
+cm_arbol1 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$y_hat_arbol1) , mode="sens_spec" , positive="1")
+cm_arbol1
+
+
+
+p_load(ranger)
+install.packages("ranger")
+library(ranger)
+
+p_load(randomForest)
+#corremos un bosque 
+forest1 <- train(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh,
+                data = train, 
+                method = "rf",
+                trControl = cv3,
+                metric="Accuracy",
+)
+
+forest_in_sample = predict(forest1, newdata = train)
+test$forest_out_sample = predict(forest1, newdata = test)
+
+cm_forest1 = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$forest_out_sample) , mode="sens_spec" , positive="1")
+cm_forest1
+
+
+#Trad GBM
+
+p_load(gbm)
+
+
+gbm_res <- train(Pobre ~ Ubic + personas_h + tipo_vivienda + Npersug + edad_jh + salud_jh + edu_jh + ocu_jh,
+                 data = train, 
+                 method = "gbm", 
+                 trControl = cv3,
+                 #  family = "binomial", 
+                 metric = "Accuracy"
+                 
+                 
+)            
+
+gbm_res #muestra el mejor accuracy con 150 árboles
+
+gbm_in_sample = predict(gbm_res, newdata = train)
+test$gbm_out_sample = predict(gbm_res, newdata = test)
+
+write.csv(test, file = "predictions_grupo7_1.csv")
+write.csv(test_hogares, file = "predictions_grupo7.csv")
+cm_gbm = confusionMatrix(data=factor(test$Pobre) , reference=factor(test$gbm_out_sample) , mode="sens_spec" , positive="1")
+cm_gbm
