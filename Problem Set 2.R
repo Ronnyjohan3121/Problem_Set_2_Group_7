@@ -97,3 +97,104 @@ pension_jh <-train_personas %>% group_by(id) %>% summarize(pension_jh =sum(pensi
 ocu_jh <- (ifelse((train_personas$P6050==1),train_personas$Oc,0))
 train_personas<- cbind(train_personas, ocu_jh)
 ocu_jh <-train_personas %>% group_by(id) %>% summarize(ocu_jh =sum(ocu_jh ,na.rm = TRUE)) 
+
+# ahora se pegan las variables creadas a la base train_hogares
+library(dplyr)
+
+train_hogares<-left_join(train_hogares, mujer_jh)
+train_hogares<-left_join(train_hogares, edad_jh)
+train_hogares<-left_join(train_hogares, edu_jh)
+train_hogares<-left_join(train_hogares, salud_jh)
+train_hogares<-left_join(train_hogares, trabajo_ocu_jh)
+train_hogares<-left_join(train_hogares, pension_jh)
+train_hogares<-left_join(train_hogares, ocu_jh)
+
+# ya me quedaron todas las variables en train hogares
+# ahora creo base train_hogares2 (se trabajará sobre esta)
+
+train_hogares2 <- train_hogares
+
+# para las regresiones voy as trabajar con las variables: Pobre ~ Clase + personas_h + P5090 + Npersug + mujer_jh + edad_jh + salud_jh + edu_jh + trabajo_ocu_jh + pension_jh + ocu_jh
+# se mira cuáles variables son factor y se convierten
+
+View(train_hogares2)
+
+# en base train_hogares2 las variables factor son: Clase, P5090, Pobre, mujer_jh, edu_jh, salud_jh, trabajo_ocu_jh, pension_jh, ocu_jh
+# de ahí en adelante se trabaja con la base train hogares 2
+
+train_hogares2 <- train_hogares2 %>%
+  mutate_at(.vars = c("Clase", "P5090", "Pobre", "mujer_jh", "edu_jh", "trabajo_ocu_jh", "pension_jh", "ocu_jh", "salud_jh"),.funs = factor)
+
+train_hogares2 <- train_hogares2 %>%
+  mutate_at(.vars = c("salud_jh"),.funs = factor)
+
+###############
+
+# se siembra semilla y se parte la base train hogares 2 con nrow, en train y test
+
+set.seed(1010) 
+train_hogares2 <- train_hogares2 %>%
+  mutate(holdout= as.logical(1:nrow(train_hogares2) %in%
+                               sample(nrow(train_hogares2), nrow(train_hogares2)*.2))
+  )
+test<-train_hogares2[train_hogares2$holdout==T,] 
+train<-train_hogares2[train_hogares2$holdout==F,] 
+
+summary(test)
+summary(train)
+
+prop.table(table(train$Pobre))
+
+# ver si hay missing values en las variables que voy a usar para los modelos:
+
+sum(is.na(train$Pobre)) # 0 missing 
+sum(is.na(train$Clase)) # 0 missing 
+sum(is.na(train$personas_h)) # 0 missing 
+sum(is.na(train$P5090)) # 0 missing 
+sum(is.na(train$Npersug)) # 0 missing 
+sum(is.na(train$Nper)) # 0 missing 
+sum(is.na(train$mujer_jh)) # 0 missing 
+sum(is.na(train$edad_jh)) # 0 missing 
+sum(is.na(train$salud_jh)) # 0 missing 
+sum(is.na(train$edu_jh)) # 0 missing 
+sum(is.na(train$trabajo_ocu_jh)) # 0 missing 
+sum(is.na(train$pension_jh)) # 0 missing 
+sum(is.na(train$ocu_jh)) # 0 missing 
+
+
+
+# Tablas de algunas de las variables que elegí
+
+install.packages("gtsummary")
+require ("gtsummary") 
+require("haven")
+train <- zap_labels(train)
+
+
+#######
+
+library(pacman)
+p_load(GGally)
+install.packages("GGally")
+library(GGally)
+#Estadísticas descriptivas
+
+
+names(train) <- c("id", "Ubic", "n_habitaciones", "tipo_vivienda",
+                  "Nper", "Npersug", "Ingtotug", "Ingtotugarr", "Ingcug", "Lp",
+                  "Pobre", "Ingtot_hogar", "personas_h", "mujer_jh", "edad_jh", "edu_jh",
+                  "salud_jh", "trabajo_ocu_jh", "pension_jh", "ocu_jh", "holdout")
+names(test) <- c("id", "Ubic", "n_habitaciones", "tipo_vivienda",
+                  "Nper", "Npersug", "Ingtotug", "Ingtotugarr", "Ingcug", "Lp",
+                  "Pobre", "Ingtot_hogar", "personas_h", "mujer_jh", "edad_jh", "edu_jh",
+                  "salud_jh", "trabajo_ocu_jh", "pension_jh", "ocu_jh", "holdout")
+
+p_load(gridExtra)
+library(gridExtra)
+variables_categoricas <- names(train[, sapply(train, is.factor)])
+#loop para gráficos múltiples
+for (var in variables_categoricas) {
+  p1<- ggplot(train, aes(x = Ingtotug, fill = .data[[var]])) +
+    geom_density(alpha = 0.4) +
+    labs(x = "Ingresos totales por hogar (COP)",
+         y = "Densidad",
